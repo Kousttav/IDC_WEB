@@ -5,13 +5,11 @@ import { Suspense } from 'react';
 import DragonModel from './components/DragonModel';
 import './App.css'
 
-const API = import.meta.env.VITE_API_URL;
-const today = new Date().getFullYear();
+const API       = import.meta.env.VITE_API_URL;
+// ✅ Fixed: admin panel URL from env var instead of ../components/admin.jsx (a file path, not a URL)
+const ADMIN_URL = import.meta.env.VITE_ADMIN_URL || "http://localhost:5174";
 
-const GALLERY_COLORS = [
-  '#0e1235,#1a1a40', '#1a0a20,#2a1040', '#0a1a0a,#0e2010', '#1a1000,#2a1800',
-  '#0a0a20,#101040', '#200a0a,#301010', '#0a1520,#102030', '#151515,#202020',
-];
+const today = new Date().getFullYear();
 
 /* ══════════════════════════════════════════════════════════════
   FOUNDERS — hardcoded, never changes
@@ -19,9 +17,9 @@ const GALLERY_COLORS = [
 const FOUNDERS = [
   {
     role: 'Founder',
-    ign: 'IDC Gullit',        // ← replace with real IGN
-    name: 'Krishanu Banerjee',   // ← replace with real name
-    image: './founder.jpg',                // ← replace with image URL or leave '' for placeholder
+    ign: 'IDC Gullit',
+    name: 'Krishanu Banerjee',
+    image: './founder.jpg',
     icon: '👑',
   },
   {
@@ -51,10 +49,10 @@ const FOUNDERS = [
   DRAGON WAYPOINTS
 ══════════════════════════════════════════════════════════════ */
 const WAYPOINTS = [
-  { id: 'top_center', position: [0, -1.0, -7.5], animation: 'flying', transitAnimation: 'flying', stayDuration: 1800, speed: 1 },
-  { id: 'right_side', position: [4.5, -1.8, 0.8], animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
-  { id: 'bottom_center', position: [0, -3, 2.8], animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
-  { id: 'left_side', position: [-4.5, -1.8, 0.8], animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
+  { id: 'top_center',    position: [0, -1.0, -7.5], animation: 'flying', transitAnimation: 'flying', stayDuration: 1800, speed: 1 },
+  { id: 'right_side',    position: [4.5, -1.8, 0.8], animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
+  { id: 'bottom_center', position: [0, -3, 2.8],    animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
+  { id: 'left_side',     position: [-4.5, -1.8, 0.8], animation: 'flying', transitAnimation: 'flying', stayDuration: 1200, speed: 1 },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -63,13 +61,13 @@ const WAYPOINTS = [
 function useDragonSequence() {
   const [idx, setIdx] = useState(0);
   const [phase, setPhase] = useState('staying');
-  const idxRef = useRef(0);
+  const idxRef   = useRef(0);
   const phaseRef = useRef('staying');
-  const timer = useRef(null);
+  const timer    = useRef(null);
 
   const goStay = useCallback((i) => {
     const wi = ((i % WAYPOINTS.length) + WAYPOINTS.length) % WAYPOINTS.length;
-    idxRef.current = wi;
+    idxRef.current   = wi;
     phaseRef.current = 'staying';
     setIdx(wi);
     setPhase('staying');
@@ -90,9 +88,9 @@ function useDragonSequence() {
     goStay(idxRef.current + 1);
   }, [goStay]);
 
-  const nextIdx = (idx + 1) % WAYPOINTS.length;
+  const nextIdx  = (idx + 1) % WAYPOINTS.length;
   const isStaying = phase === 'staying';
-  const active = isStaying ? WAYPOINTS[idx] : WAYPOINTS[nextIdx];
+  const active   = isStaying ? WAYPOINTS[idx] : WAYPOINTS[nextIdx];
 
   return {
     targetPosition: active.position,
@@ -184,25 +182,24 @@ function IDCLoader({ onDone }) {
   MAIN APP
 ══════════════════════════════════════════════════════════════ */
 function App() {
-  const [players, setPlayers] = useState([]);
+  const [players,     setPlayers]     = useState([]);
   const [achievements, setAchievements] = useState([]);
-  const [gallery, setGallery] = useState([]);
+  const [gallery,     setGallery]     = useState([]);
   const [tournaments, setTournaments] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [playerFade, setPlayerFade] = useState(true);
+  const [searchTerm,  setSearchTerm]  = useState('');
+  const [playerFade,  setPlayerFade]  = useState(true);
 
   const admins = players.filter(p => p.role === 'admin');
 
-  const revealObsRef = useRef(null);
-  const showAllAchievementsRef = useRef(false);
+  const revealObsRef            = useRef(null);
+  const showAllAchievementsRef  = useRef(false);
 
   const { targetPosition, animation, speed, onReached } = useDragonSequence();
 
   /* ── helpers ── */
   function toggleMobile() { document.getElementById('mobileMenu').classList.toggle('open'); }
-  function closeMobile() { document.getElementById('mobileMenu').classList.remove('open'); }
+  function closeMobile()  { document.getElementById('mobileMenu').classList.remove('open'); }
 
   function closeModal() {
     const el = document.getElementById('playerModal');
@@ -215,20 +212,6 @@ function App() {
       if (el) el.classList.remove('open');
     }
   }
-
-  function showToast(msg, duration = 3500) {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(() => {
-      toast.style.cssText += 'opacity:0;transform:translateX(40px);transition:0.3s ease;';
-      setTimeout(() => toast.remove(), 300);
-    }, duration);
-  }
-  function submitForm() { showToast("Message sent! We'll get back to you shortly. 🎮"); }
 
   /* ── Effect 1: particle canvas ── */
   useEffect(() => {
@@ -284,7 +267,7 @@ function App() {
     };
     window.addEventListener('scroll', onScroll);
 
-    const loader = document.getElementById('pageLoader');
+    const loader      = document.getElementById('pageLoader');
     const loaderTimer = setTimeout(() => {
       loader?.classList.add('hide');
       setTimeout(() => loader?.remove(), 500);
@@ -303,11 +286,11 @@ function App() {
 
     function animateCounters() {
       document.querySelectorAll('[data-target]').forEach(el => {
-        const target = +el.dataset.target;
+        const target   = +el.dataset.target;
         const duration = 3000;
         const startTime = performance.now();
         function updateCounter(currentTime) {
-          const progress = Math.min((currentTime - startTime) / duration, 1);
+          const progress      = Math.min((currentTime - startTime) / duration, 1);
           const easedProgress = 1 - Math.pow(1 - progress, 3);
           el.textContent = Math.floor(target * easedProgress);
           if (progress < 1) requestAnimationFrame(updateCounter);
@@ -397,7 +380,7 @@ function App() {
         grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted);font-family:var(--font-hd);font-size:0.75rem;letter-spacing:0.2em;">NO PLAYERS FOUND</div>';
         return;
       }
-      grid.style.opacity = playerFade ? '1' : '0';
+      grid.style.opacity   = playerFade ? '1' : '0';
       grid.style.transform = playerFade ? 'translateY(0)' : 'translateY(12px)';
       grid.style.transition = 'opacity 0.38s ease, transform 0.38s ease';
 
@@ -405,18 +388,17 @@ function App() {
         <div class="player-card" onclick="window.__openModal('${p._id}')">
           <div class="player-img-wrap">
             ${p.image
-          ? `<img class="player-img" src="${p.image}" alt="${p.ign}"/>`
-          : `<div class="player-img-placeholder"><i class="fas fa-user-ninja"></i></div>`}
+              ? `<img class="player-img" src="${p.image}" alt="${p.ign}"/>`
+              : `<div class="player-img-placeholder"><i class="fas fa-user-ninja"></i></div>`}
             <div class="player-overlay"></div>
             ${p.role === 'admin'
-          ? `<div class="player-role-badge"><i class="fas fa-shield-alt"></i> ADMIN</div>`
-          : ''}
+              ? `<div class="player-role-badge"><i class="fas fa-shield-alt"></i> ADMIN</div>`
+              : ''}
             <div class="player-view-btn">View Profile</div>
           </div>
           <div class="player-info">
             <div class="player-ign">${p.ign}</div>
             <div class="player-name">${p.name}</div>
-            
           </div>
         </div>
       `).join('');
@@ -435,13 +417,13 @@ function App() {
           : `<div class="modal-img-placeholder"><i class="fas fa-user-ninja"></i></div>`}
         <div class="modal-meta">
           <div class="modal-ign">${p.ign}${p.role === 'admin'
-          ? ' <span style="font-size:0.6rem;color:#c8972a;font-family:var(--font-hd);letter-spacing:0.15em;vertical-align:middle;">⭐ ADMIN</span>'
-          : ''}</div>
+            ? ' <span style="font-size:0.6rem;color:#c8972a;font-family:var(--font-hd);letter-spacing:0.15em;vertical-align:middle;">⭐ ADMIN</span>'
+            : ''}</div>
           <div class="modal-realname">${p.name}</div>
           <div class="modal-bio">${p.bio || ''}</div>
           <div class="modal-socials">
             ${p.social?.instagram ? `<a href="${p.social.instagram}"><i class="fab fa-instagram"></i></a>` : ''}
-            ${p.social?.discord ? `<a href="${p.social.discord}"><i class="fab fa-discord"></i></a>` : ''}
+            ${p.social?.discord   ? `<a href="${p.social.discord}"><i class="fab fa-discord"></i></a>`   : ''}
           </div>
         </div>`;
       if (bdy) bdy.innerHTML = `
@@ -459,34 +441,30 @@ function App() {
     return () => { delete window.__openModal; };
   }, [displayedPlayers, playerFade, players]);
 
-  /* ── Effect 5: render admins grid / carousel — PHOTO + IGN + NAME only ── */
-  /* ── Effect 5: render admins — auto-scroll like gallery ── */
+  /* ── Effect 5: render admins carousel ── */
   useEffect(() => {
     const track = document.getElementById('adminsTrack');
     if (!track || !admins.length) return;
 
-    // Duplicate for seamless infinite loop
     const duplicated = [...admins, ...admins];
-
     track.innerHTML = duplicated.map((p) => `
-    <div class="admin-card" onclick="window.__openAdminModal('${p._id}')" style="cursor:pointer">
-      <div class="admin-img-wrap">
-        ${p.image
-        ? `<img class="admin-img" src="${p.image}" alt="${p.ign}"/>`
-        : `<div class="admin-img-placeholder"><i class="fas fa-user-shield"></i></div>`}
-        <div class="admin-badge-ring"></div>
+      <div class="admin-card" onclick="window.__openAdminModal('${p._id}')" style="cursor:pointer">
+        <div class="admin-img-wrap">
+          ${p.image
+            ? `<img class="admin-img" src="${p.image}" alt="${p.ign}"/>`
+            : `<div class="admin-img-placeholder"><i class="fas fa-user-shield"></i></div>`}
+          <div class="admin-badge-ring"></div>
+        </div>
+        <div class="admin-info">
+          <div class="admin-ign">${p.ign}</div>
+          <div class="admin-name">${p.name}</div>
+        </div>
       </div>
-      <div class="admin-info">
-        <div class="admin-ign">${p.ign}</div>
-        <div class="admin-name">${p.name}</div>
-      </div>
-    </div>
-  `).join('');
-
+    `).join('');
     track.classList.add('scroll-mode');
   }, [admins]);
 
-  /* ── Admin modal (full details still in modal) ── */
+  /* ── Admin modal ── */
   useEffect(() => {
     window.__openAdminModal = (id) => {
       const p = admins.find(x => x._id === id);
@@ -503,7 +481,7 @@ function App() {
           <div class="modal-bio">${p.bio || ''}</div>
           <div class="modal-socials">
             ${p.social?.instagram ? `<a href="${p.social.instagram}" target="_blank"><i class="fab fa-instagram"></i></a>` : ''}
-            ${p.social?.discord ? `<a href="${p.social.discord}"   target="_blank"><i class="fab fa-discord"></i></a>` : ''}
+            ${p.social?.discord   ? `<a href="${p.social.discord}"   target="_blank"><i class="fab fa-discord"></i></a>`   : ''}
           </div>
         </div>`;
       if (bdy) bdy.innerHTML = `
@@ -591,8 +569,8 @@ function App() {
       return new Promise((resolve) => {
         if (orientationCache[src]) return resolve(orientationCache[src]);
         const img = new Image();
-        img.onload = () => {
-          const ratio = img.naturalWidth / img.naturalHeight;
+        img.onload  = () => {
+          const ratio       = img.naturalWidth / img.naturalHeight;
           const orientation = ratio < 0.9 ? 'portrait' : 'landscape';
           orientationCache[src] = orientation;
           resolve(orientation);
@@ -630,11 +608,11 @@ function App() {
   /* ── Lightbox ── */
   useEffect(() => {
     window.__openLightbox = (src, caption = '') => {
-      const lightbox = document.getElementById('galleryLightbox');
-      const image = document.getElementById('galleryLightboxImg');
-      const captionText = document.getElementById('galleryLightboxCaption');
+      const lightbox     = document.getElementById('galleryLightbox');
+      const image        = document.getElementById('galleryLightboxImg');
+      const captionText  = document.getElementById('galleryLightboxCaption');
       if (!lightbox || !image) return;
-      image.src = src;
+      image.src           = src;
       captionText.innerText = caption || '';
       lightbox.classList.add('open');
       document.body.style.overflow = 'hidden';
@@ -652,7 +630,7 @@ function App() {
   useEffect(() => {
     const grid = document.getElementById('tournamentsGrid');
     if (!grid) return;
-    const cls = { live: 'status-live', upcoming: 'status-upcoming', completed: 'status-completed' };
+    const cls   = { live: 'status-live', upcoming: 'status-upcoming', completed: 'status-completed' };
     const label = { live: '🔴 LIVE NOW', upcoming: '📅 UPCOMING', completed: '✅ COMPLETED' };
     grid.innerHTML = tournaments.map(t => {
       const status = t.status || 'upcoming';
@@ -688,10 +666,11 @@ function App() {
     try { const res = await fetch(`${API}/tournaments`); setTournaments(await res.json()); }
     catch (err) { console.log(err); }
   };
+
   const [formData, setFormData] = useState({
     name: '', email: '', subject: 'Sponsorship Inquiry', message: '',
   });
-  const [formState, setFormState] = useState('idle'); // idle | loading | success | error
+  const [formState, setFormState] = useState('idle');
   const [formError, setFormError] = useState('');
 
   function handleInput(e) {
@@ -700,17 +679,13 @@ function App() {
 
   async function submitForm() {
     const { name, email, subject, message } = formData;
-    if (!name || !email || !message) {
-      setFormError('Please fill in all required fields.');
-      return;
-    }
-    setFormState('loading');
-    setFormError('');
+    if (!name || !email || !message) { setFormError('Please fill in all required fields.'); return; }
+    setFormState('loading'); setFormError('');
     try {
-      const res = await fetch(`${API}/contact`, {
-        method: 'POST',
+      const res  = await fetch(`${API}/contact`, {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, subject, message }),
+        body:    JSON.stringify({ name, email, subject, message }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong.');
@@ -721,6 +696,7 @@ function App() {
       setFormState('error');
     }
   }
+
   /* ══════════════════════════════════════════════════════════════
     JSX
   ══════════════════════════════════════════════════════════════ */
@@ -755,7 +731,8 @@ function App() {
           <a href="#tournaments">Tournaments</a>
           <a href="#contact">Contact</a>
         </div>
-        <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer" className="nav-cta">Admin Panel</a>
+        {/* ✅ Fixed: uses ADMIN_URL env var instead of ../components/admin.jsx */}
+        <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer" className="nav-cta">Admin Panel</a>
         <div className="nav-hamburger" onClick={toggleMobile}>
           <span></span><span></span><span></span>
         </div>
@@ -771,7 +748,8 @@ function App() {
         <a href="#gallery" onClick={closeMobile}>Gallery</a>
         <a href="#tournaments" onClick={closeMobile}>Tournaments</a>
         <a href="#contact" onClick={closeMobile}>Contact</a>
-        <a href="http://localhost:5174" target="_blank" rel="noopener noreferrer">Admin Panel →</a>
+        {/* ✅ Fixed: uses ADMIN_URL env var */}
+        <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">Admin Panel →</a>
       </div>
 
       {/* HERO */}
@@ -822,11 +800,11 @@ function App() {
       <div className="stats-strip reveal">
         <div className="stats-grid">
           {[
-            [tournaments.length, 'Tournaments'],
-            [players.length, 'Active Players'],
+            [tournaments.length,  'Tournaments'],
+            [players.length,      'Active Players'],
             [achievements.length, 'Achievements'],
-            [`${today - 2022}`, 'Years Active'],
-            ['92', 'Win Rate %'],
+            [`${today - 2022}`,   'Years Active'],
+            ['92',                'Win Rate %'],
           ].map(([n, lbl]) => (
             <div className="stat-item" key={lbl}>
               <div className="stat-num" data-target={n}>0</div>
@@ -854,8 +832,7 @@ function App() {
             <p>Immortal De Campeones (IDC) was founded in 2022 with one mission — to dominate the world of competitive eFootball through passion, discipline, and elite gameplay.</p>
             <p>Built by players who live for the game, IDC represents more than just an esports squad. We are a family of competitors driven by ambition, teamwork, and the hunger to become champions.</p>
             <p>From intense league battles to high-stakes tournaments, IDC fields top-tier eFootball players known for their skill, consistency, and winning mentality. Every match is played with pride, strategy, and the determination to leave our mark on the esports scene.</p>
-            <p>At IDC, victory is not just a goal — it’s our identity.
-              Because legends aren’t born overnight. They are built match by match, trophy by trophy.</p>
+            <p>At IDC, victory is not just a goal — it's our identity. Because legends aren't born overnight. They are built match by match, trophy by trophy.</p>
             <div className="about-pills">
               <span className="pill">⚽ Efootball</span>
             </div>
@@ -863,9 +840,7 @@ function App() {
         </div>
       </section>
 
-      {/* ═══════════════════════════════════
-          FOUNDERS — hardcoded, never changes
-      ═══════════════════════════════════ */}
+      {/* FOUNDERS */}
       <section className="section-pad founders-section" id="founders">
         <div className="section-header reveal">
           <div className="section-eyebrow">Leadership Origins</div>
@@ -963,8 +938,6 @@ function App() {
       {/* DISCORD + TRIALS */}
       <div className="discord-section reveal">
         <div className="discord-duo">
-
-          {/* Discord Card */}
           <div className="discord-card">
             <div className="discord-icon"><i className="fab fa-discord"></i></div>
             <h2>Join the <em style={{ color: '#5865f2' }}>IDC Community</em></h2>
@@ -973,8 +946,6 @@ function App() {
               <i className="fab fa-discord"></i> Join Our Discord
             </a>
           </div>
-
-          {/* Trials Card */}
           <div className="discord-card trials-card">
             <div className="discord-icon" style={{ color: '#c8972a', filter: 'drop-shadow(0 0 16px rgba(200,151,42,0.5))' }}>
               <i className="fas fa-gamepad"></i>
@@ -985,9 +956,9 @@ function App() {
               <i className="fas fa-trophy"></i> Apply for Trials
             </a>
           </div>
-
         </div>
       </div>
+
       {/* CONTACT */}
       <section className="section-pad contact" id="contact">
         <div className="section-header reveal">
@@ -1002,9 +973,9 @@ function App() {
               or just want to connect with the IDC family — we're always open.</p>
             <div className="contact-links">
               {[
-                { icon: 'fas fa-envelope', label: 'Email Us', value: 'contact @ immortaldecampeons@gmail.com' },
-                { icon: 'fab fa-discord', label: 'Discord', value: 'discord.gg/⚽ IDC OFFICIAL SERVER 🏆' },
-                { icon: 'fab fa-instagram', label: 'Instagram', value: '@immortal_de_campeones' },
+                { icon: 'fas fa-envelope', label: 'Email Us',   value: 'contact @ immortaldecampeons@gmail.com' },
+                { icon: 'fab fa-discord',  label: 'Discord',    value: 'discord.gg/⚽ IDC OFFICIAL SERVER 🏆' },
+                { icon: 'fab fa-instagram',label: 'Instagram',  value: '@immortal_de_campeones' },
               ].map(({ icon, label, value }) => (
                 <div className="contact-link" key={label}>
                   <div className="contact-link-icon"><i className={icon}></i></div>
@@ -1015,14 +986,12 @@ function App() {
           </div>
 
           <div className="contact-form reveal">
-
             {formState === 'success' ? (
               <div className="form-success">
                 <div className="form-success-icon">✅</div>
                 <h3>Message Sent!</h3>
                 <p>We've received your message and will get back to you soon. Check your email for confirmation.</p>
-                <button className="form-submit" style={{ marginTop: '1.5rem' }}
-                  onClick={() => setFormState('idle')}>
+                <button className="form-submit" style={{ marginTop: '1.5rem' }} onClick={() => setFormState('idle')}>
                   Send Another <i className="fas fa-arrow-right"></i>
                 </button>
               </div>
@@ -1031,20 +1000,13 @@ function App() {
                 <div className="form-row">
                   <div className="form-group">
                     <label>Your Name <span style={{ color: 'var(--ember-1)' }}>*</span></label>
-                    <input
-                      type="text" name="name" placeholder="Your Name"
-                      value={formData.name} onChange={handleInput}
-                    />
+                    <input type="text" name="name" placeholder="Your Name" value={formData.name} onChange={handleInput} />
                   </div>
                   <div className="form-group">
                     <label>Email <span style={{ color: 'var(--ember-1)' }}>*</span></label>
-                    <input
-                      type="email" name="email" placeholder="Email for contact"
-                      value={formData.email} onChange={handleInput}
-                    />
+                    <input type="email" name="email" placeholder="Email for contact" value={formData.email} onChange={handleInput} />
                   </div>
                 </div>
-
                 <div className="form-group">
                   <label>Subject</label>
                   <select name="subject" value={formData.subject} onChange={handleInput}>
@@ -1054,30 +1016,19 @@ function App() {
                     <option>General</option>
                   </select>
                 </div>
-
                 <div className="form-group">
                   <label>Message <span style={{ color: 'var(--ember-1)' }}>*</span></label>
-                  <textarea
-                    name="message" placeholder="Tell us more..."
-                    value={formData.message} onChange={handleInput}
-                  />
+                  <textarea name="message" placeholder="Tell us more..." value={formData.message} onChange={handleInput} />
                 </div>
-
                 {formError && (
                   <div className="form-error">
                     <i className="fas fa-exclamation-circle"></i> {formError}
                   </div>
                 )}
-
-                <button
-                  className="form-submit"
-                  onClick={submitForm}
-                  disabled={formState === 'loading'}
-                >
+                <button className="form-submit" onClick={submitForm} disabled={formState === 'loading'}>
                   {formState === 'loading'
                     ? <><i className="fas fa-spinner fa-spin"></i> Sending...</>
-                    : <>Send Message <i className="fas fa-arrow-right"></i></>
-                  }
+                    : <>Send Message <i className="fas fa-arrow-right"></i></>}
                 </button>
               </>
             )}
@@ -1096,25 +1047,11 @@ function App() {
             <p className="footer-tagline">We are IDC — a band of relentless competitors united by one goal: immortality in the arena of champions.</p>
             <div className="footer-socials">
               {[
-                {
-                  name: 'instagram',
-                  link: 'https://www.instagram.com/immortal_de_campeones/',
-                },
-                {
-                  name: 'discord',
-                  link: 'https://discord.gg/68RcVNrM9',
-                },
-                {
-                  name: 'facebook',
-                  link: 'https://www.facebook.com/profile.php?id=61568829924803&mibextid=ZbWKwL&utm_source=ig&utm_medium=social&utm_content=link_in_bio',
-                },
+                { name: 'instagram', link: 'https://www.instagram.com/immortal_de_campeones/' },
+                { name: 'discord',   link: 'https://discord.gg/68RcVNrM9' },
+                { name: 'facebook',  link: 'https://www.facebook.com/profile.php?id=61568829924803&mibextid=ZbWKwL&utm_source=ig&utm_medium=social&utm_content=link_in_bio' },
               ].map((s) => (
-                <a
-                  href={s.link}
-                  key={s.name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={s.link} key={s.name} target="_blank" rel="noopener noreferrer">
                   <i className={`fab fa-${s.name}`}></i>
                 </a>
               ))}
@@ -1146,7 +1083,8 @@ function App() {
               <li><a href="#">Sponsorship</a></li>
               <li><a href="#">Discord</a></li>
               <li><a href="#contact">Contact</a></li>
-              <li><a href="http://localhost:5174" target="_blank" rel="noopener noreferrer">Admin</a></li>
+              {/* ✅ Fixed: uses ADMIN_URL env var */}
+              <li><a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">Admin</a></li>
             </ul>
           </div>
         </div>
@@ -1167,9 +1105,7 @@ function App() {
 
       {/* LIGHTBOX */}
       <div className="lightbox" id="lightbox" onClick={closeLightbox}>
-        <span className="lightbox-close">
-          <i className="fas fa-times"></i>
-        </span>
+        <span className="lightbox-close"><i className="fas fa-times"></i></span>
         <img id="lightboxImg" src="" alt="" onClick={e => e.stopPropagation()} />
       </div>
 
