@@ -26,7 +26,14 @@ const FOUNDERS = [
     role: 'Co-Founder',
     ign: 'IDC Adrish',
     name: 'Adrish Saha',
-    image: './co-founder.jpeg',
+    image: './co-founder1.jpeg',
+    icon: '🔥',
+  },
+  {
+    role: 'Co-Founder',
+    ign: 'IDC Atri',
+    name: 'Atri Guha',
+    image: './co-founder2.jpeg',
     icon: '🔥',
   },
   {
@@ -40,7 +47,14 @@ const FOUNDERS = [
     role: 'Co-Owner',
     ign: 'LYNX',
     name: 'MAYUKH PAL',
-    image: './co-owner.jpg',
+    image: './co-owner1.jpg',
+    icon: '🛡️',
+  },
+  {
+    role: 'Co-Owner',
+    ign: 'KONKRETE',
+    name: 'PRIYABRATA KONAR',
+    image: './co-owner2.jpg',
     icon: '🛡️',
   },
 ];
