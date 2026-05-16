@@ -1,7 +1,10 @@
 const router = require('express').Router();
 
-const upload   = require('../middleware/upload');
-const { downloadImageFromUrl } = require('../utils/downloadImage');
+const upload = require('../middleware/upload');
+const {
+  uploadMulterFileToCloudinary,
+  uploadImageFromUrl,
+} = require('../utils/uploadToCloudinary');
 
 const {
   getGallery,
@@ -38,7 +41,7 @@ router.post(
 router.post(
   '/upload',
   upload.single('image'),
-  (req, res) => {
+  async (req, res) => {
 
     if (!req.file) {
       return res.status(400).json({
@@ -46,10 +49,25 @@ router.post(
       });
     }
 
-    res.json({
-      imageUrl:
-        `${process.env.BASE_URL || 'http://localhost:5000'}/uploads/${req.file.filename}`
-    });
+    try {
+
+      const imageUrl =
+        await uploadMulterFileToCloudinary(req.file);  // → Cloudinary
+
+      if (!imageUrl) {
+        return res.status(422).json({
+          error: 'Failed to upload image to Cloudinary'
+        });
+      }
+
+      res.json({ imageUrl });
+
+    } catch (err) {
+
+      console.error('/upload error:', err.message);
+      res.status(500).json({ error: err.message });
+
+    }
   }
 );
 
@@ -57,11 +75,11 @@ router.post(
 /* =========================
    UPLOAD FROM URL
    Used by Excel import to pull
-   Google Drive images onto the
-   server and store them locally.
+   Google Drive images through
+   Cloudinary.
 
    Body: { imageUrl: "https://drive.google.com/..." }
-   Returns: { imageUrl: "http://localhost:5000/uploads/..." }
+   Returns: { imageUrl: "https://res.cloudinary.com/..." }
 ========================= */
 
 router.post('/upload-from-url', async (req, res) => {
@@ -76,26 +94,24 @@ router.post('/upload-from-url', async (req, res) => {
 
   try {
 
-    const localPath = await downloadImageFromUrl(imageUrl);
+    const cloudinaryUrl = await uploadImageFromUrl(imageUrl);  // → Cloudinary
 
-    if (!localPath) {
+    if (!cloudinaryUrl) {
       return res.status(422).json({
         error:
-          'Could not download image. ' +
+          'Could not upload image to Cloudinary. ' +
           'Make sure the Drive file is shared as "Anyone with the link can view".'
       });
     }
 
-    const BASE = process.env.BASE_URL || 'http://localhost:5000';
-
-    res.json({ imageUrl: `${BASE}${localPath}` });
+    res.json({ imageUrl: cloudinaryUrl });
 
   } catch (err) {
 
     console.error('upload-from-url error:', err.message);
 
     res.status(500).json({
-      error: 'Server error while downloading image',
+      error: 'Server error while uploading image',
       detail: err.message
     });
   }

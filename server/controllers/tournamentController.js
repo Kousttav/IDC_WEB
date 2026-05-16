@@ -37,7 +37,7 @@ exports.updateTournament = async (req, res) => {
     const updated = await Tournament.findByIdAndUpdate(
       req.params.id,
       req.body,
-      { new: true }
+      { returnDocument: 'after' }
     );
 
     res.json(updated);

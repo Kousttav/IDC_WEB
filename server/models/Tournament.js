@@ -12,7 +12,11 @@ const tournamentSchema = new mongoose.Schema({
 
   prizePool: String,
 
-  format: String
+  format: String,
+
+  startDate: { type: Date, default: null },
+
+  endDate: { type: Date, default: null }
 
 }, {
   timestamps: true

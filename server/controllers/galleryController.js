@@ -1,8 +1,9 @@
 const Gallery = require('../models/Gallery');
-
-const BASE =
-  process.env.BASE_URL ||
-  'http://localhost:5000';
+const {
+  uploadMulterFileToCloudinary,
+  uploadImageFromUrl,
+  deleteFromCloudinary,
+} = require('../utils/uploadToCloudinary');
 
 
 /* =========================
@@ -20,9 +21,7 @@ exports.getGallery = async (req, res) => {
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
@@ -36,15 +35,12 @@ exports.createGallery = async (req, res) => {
   try {
 
     const imagePath = req.file
-      ? `${BASE}/uploads/${req.file.filename}`
-      : req.body.src;
+      ? await uploadMulterFileToCloudinary(req.file)
+      : await uploadImageFromUrl(req.body.src);
 
     const newData = new Gallery({
-
-      src: imagePath,
-
+      src:     imagePath,
       caption: req.body.caption || ''
-
     });
 
     await newData.save();
@@ -53,15 +49,15 @@ exports.createGallery = async (req, res) => {
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /* =========================
    UPDATE GALLERY ITEM
+   Deletes old Cloudinary image
+   when a new one is supplied.
 ========================= */
 
 exports.updateGallery = async (req, res) => {
@@ -69,74 +65,66 @@ exports.updateGallery = async (req, res) => {
   try {
 
     const updatedData = {
-
       caption: req.body.caption
-
     };
 
+    /* Resolve new image if provided */
     if (req.file) {
-
-      updatedData.src =
-        `${BASE}/uploads/${req.file.filename}`;
+      updatedData.src = await uploadMulterFileToCloudinary(req.file);
+    } else if (req.body.src) {
+      updatedData.src = await uploadImageFromUrl(req.body.src);
     }
 
-    const updated =
-      await Gallery.findByIdAndUpdate(
+    /* Fetch existing record before update */
+    const existing = await Gallery.findById(req.params.id);
 
-        req.params.id,
-
-        updatedData,
-
-        { returnDocument: 'after' }
-
-      );
-
-    if (!updated) {
-
-      return res.status(404).json({
-        message: 'Gallery item not found'
-      });
+    if (!existing) {
+      return res.status(404).json({ message: 'Gallery item not found' });
     }
+
+    /* Delete old Cloudinary image if src is being replaced */
+    if (updatedData.src && existing.src !== updatedData.src) {
+      await deleteFromCloudinary(existing.src);
+    }
+
+    const updated = await Gallery.findByIdAndUpdate(
+      req.params.id,
+      updatedData,
+      { returnDocument: 'after' }
+    );
 
     res.json(updated);
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /* =========================
    DELETE GALLERY ITEM
+   Also removes image from
+   Cloudinary.
 ========================= */
 
 exports.deleteGallery = async (req, res) => {
 
   try {
 
-    const deleted =
-      await Gallery.findByIdAndDelete(
-        req.params.id
-      );
+    const deleted = await Gallery.findByIdAndDelete(req.params.id);
 
     if (!deleted) {
-
-      return res.status(404).json({
-        message: 'Gallery item not found'
-      });
+      return res.status(404).json({ message: 'Gallery item not found' });
     }
 
-    res.json({
-      message: 'Gallery item deleted'
-    });
+    /* Delete image from Cloudinary */
+    await deleteFromCloudinary(deleted.src);
+
+    res.json({ message: 'Gallery item deleted' });
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };

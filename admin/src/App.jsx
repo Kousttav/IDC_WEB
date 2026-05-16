@@ -70,7 +70,24 @@ function useToasts() {
 
 const emptyPlayer     = { ign: "", name: "", email: "", contact: "", address: "", image: "", instagram: "", bio: "" };
 const emptyAchieve    = { icon: "", date: "", title: "", desc: "", badge: "" };
-const emptyTournament = { name: "", game: "eFootball", status: "upcoming", date: "TBD", prizePool: "TBD", format: "TBD" };
+const emptyTournament = {
+  name: "", game: "eFootball", status: "upcoming",
+  startDate: "", endDate: "",   // datetime-local ISO strings
+  date: "TBD", prizePool: "TBD", format: "TBD",
+};
+
+// ── Auto-status helper ─────────────────────────────────────────
+// Derives live/upcoming/completed from startDate & endDate.
+// Falls back to the manual status field if no dates are set.
+function getAutoStatus(t) {
+  if (!t.startDate && !t.endDate) return t.status;
+  const now   = Date.now();
+  const start = t.startDate ? new Date(t.startDate).getTime() : null;
+  const end   = t.endDate   ? new Date(t.endDate).getTime()   : null;
+  if (end   && now > end)    return "completed";
+  if (start && now >= start) return "live";
+  return "upcoming";
+}
 
 // ════════════════════════════════════════════════════════════════
 //  LOGIN
@@ -179,7 +196,6 @@ function Sidebar({ activeTab, setActiveTab, adminName, onLogout, playerCount, si
           <div className="nav-section-label">System</div>
           {navItem("notifications", "fa-bell", "Notifications", unreadCount)}
           {navItem("settings",      "fa-cog",  "Settings")}
-          {/* ✅ Fixed: uses SITE_URL env var instead of ../App.jsx */}
           <div className="nav-item" onClick={() => window.open(SITE_URL, "_blank")}>
             <i className="nav-icon fas fa-external-link-alt"></i>
             <span className="nav-label">View Website</span>
@@ -215,7 +231,6 @@ function Topbar({ activeTab, setActiveTab, unreadCount, unreadContactCount }) {
         <div className="page-title">{meta.title}<small>{meta.sub}</small></div>
       </div>
       <div className="topbar-right">
-        {/* ✅ Fixed: uses SITE_URL env var instead of ../App.jsx */}
         <a href={SITE_URL} target="_blank" rel="noreferrer" className="topbar-btn">
           <i className="fas fa-eye"></i> View Site
         </a>
@@ -912,6 +927,13 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
   const [editingId, setEditingId] = useState(null);
   const [form,      setForm]      = useState(emptyTournament);
 
+  // Re-evaluate auto-statuses every 60 s without a page refresh
+  const [, forceUpdate] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => forceUpdate((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const statusClass = { live: "status-live", upcoming: "status-upcoming", completed: "status-completed" };
   const statusLabel = { live: "🔴 LIVE", upcoming: "📅 UPCOMING", completed: "✅ DONE" };
 
@@ -920,13 +942,33 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
     const t = tournaments.find((x) => x._id === id);
     if (!t) return;
     setEditingId(id);
-    setForm({ name: t.name || "", game: t.game || "eFootball", status: t.status || "upcoming", date: t.date || "TBD", prizePool: t.prizePool || "TBD", format: t.format || "TBD" });
+    setForm({
+      name:      t.name      || "",
+      game:      t.game      || "eFootball",
+      status:    t.status    || "upcoming",
+      startDate: t.startDate || "",
+      endDate:   t.endDate   || "",
+      date:      t.date      || "TBD",
+      prizePool: t.prizePool || "TBD",
+      format:    t.format    || "TBD",
+    });
     setShowForm(true);
   };
 
   const save = async () => {
     if (!form.name.trim()) { showToast("Tournament name is required.", "danger"); return; }
-    const data = { name: form.name.trim(), game: form.game, status: form.status, date: form.date, prizePool: form.prizePool, format: form.format };
+    // Compute the current auto-status so the DB stays in sync
+    const computedStatus = getAutoStatus({ ...form });
+    const data = {
+      name:      form.name.trim(),
+      game:      form.game,
+      status:    computedStatus,
+      startDate: form.startDate,
+      endDate:   form.endDate,
+      date:      form.date,
+      prizePool: form.prizePool,
+      format:    form.format,
+    };
     try {
       if (editingId) {
         const res     = await authFetch(`${API}/tournaments/${editingId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
@@ -962,6 +1004,9 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
 
   const f = (key) => ({ value: form[key], onChange: (e) => setForm((prev) => ({ ...prev, [key]: e.target.value })) });
 
+  // Live preview of computed status while filling the form
+  const previewStatus = (form.startDate || form.endDate) ? getAutoStatus({ ...form }) : null;
+
   return (
     <div>
       <div className="panel">
@@ -973,26 +1018,43 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
         </div>
         <div style={{ overflowX: "auto" }}>
           <table className="data-table">
-            <thead><tr><th>Name</th><th>Game</th><th>Status</th><th>Date</th><th>Prize Pool</th><th>Actions</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Name</th><th>Game</th><th>Status</th>
+                <th>Start</th><th>End</th><th>Prize Pool</th><th>Actions</th>
+              </tr>
+            </thead>
             <tbody>
               {tournaments.length === 0 && (
-                <tr><td colSpan={6} style={{ textAlign: "center", color: "var(--text-muted)", padding: "1.5rem", fontFamily: "var(--font-alt)" }}>No tournaments yet.</td></tr>
+                <tr><td colSpan={7} style={{ textAlign: "center", color: "var(--text-muted)", padding: "1.5rem", fontFamily: "var(--font-alt)" }}>No tournaments yet.</td></tr>
               )}
-              {tournaments.map((t) => (
-                <tr key={t._id}>
-                  <td style={{ color: "var(--text)", fontWeight: 500 }}>{t.name}</td>
-                  <td style={{ color: "var(--text-muted)" }}>{t.game}</td>
-                  <td><span className={`tournament-status ${statusClass[t.status]}`}>{statusLabel[t.status]}</span></td>
-                  <td style={{ color: "var(--text-muted)" }}>{t.date}</td>
-                  <td style={{ color: "var(--gold)" }}>{t.prizePool}</td>
-                  <td>
-                    <div className="tbl-actions">
-                      <button className="tbl-btn edit" onClick={() => openEdit(t._id)} title="Edit"><i className="fas fa-edit"></i></button>
-                      <button className="tbl-btn del"  onClick={() => del(t._id)}      title="Delete"><i className="fas fa-trash"></i></button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {tournaments.map((t) => {
+                const auto = getAutoStatus(t);
+                return (
+                  <tr key={t._id}>
+                    <td style={{ color: "var(--text)", fontWeight: 500 }}>{t.name}</td>
+                    <td style={{ color: "var(--text-muted)" }}>{t.game}</td>
+                    <td><span className={`tournament-status ${statusClass[auto]}`}>{statusLabel[auto]}</span></td>
+                    <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                      {t.startDate
+                        ? new Date(t.startDate).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+                        : <span style={{ color: "var(--border)" }}>—</span>}
+                    </td>
+                    <td style={{ color: "var(--text-muted)", fontSize: "0.8rem" }}>
+                      {t.endDate
+                        ? new Date(t.endDate).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })
+                        : <span style={{ color: "var(--border)" }}>—</span>}
+                    </td>
+                    <td style={{ color: "var(--gold)" }}>{t.prizePool}</td>
+                    <td>
+                      <div className="tbl-actions">
+                        <button className="tbl-btn edit" onClick={() => openEdit(t._id)} title="Edit"><i className="fas fa-edit"></i></button>
+                        <button className="tbl-btn del"  onClick={() => del(t._id)}      title="Delete"><i className="fas fa-trash"></i></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1006,23 +1068,90 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
           </div>
           <div className="panel-body">
             <div className="form-grid">
-              <div className="form-group form-full"><label>Tournament Name*</label><input type="text" placeholder="IDC Open Championship 2025" {...f("name")} /></div>
-              <div className="form-group"><label>Game</label><input type="text" placeholder="eFootball" {...f("game")} /></div>
+
+              {/* Name */}
+              <div className="form-group form-full">
+                <label>Tournament Name*</label>
+                <input type="text" placeholder="IDC Open Championship 2025" {...f("name")} />
+              </div>
+
+              {/* Game */}
               <div className="form-group">
-                <label>Status</label>
+                <label>Game</label>
+                <input type="text" placeholder="eFootball" {...f("game")} />
+              </div>
+
+              {/* Manual status override — only used when no dates are set */}
+              <div className="form-group">
+                <label>
+                  Status Override
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400, marginLeft: 6 }}>
+                    (ignored when dates are set)
+                  </span>
+                </label>
                 <select value={form.status} onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}>
                   <option value="upcoming">📅 Upcoming</option>
                   <option value="live">🔴 Live</option>
                   <option value="completed">✅ Completed</option>
                 </select>
               </div>
-              <div className="form-group"><label>Date</label><input type="text" placeholder="DEC 2025" {...f("date")} /></div>
-              <div className="form-group"><label>Prize Pool</label><input type="text" placeholder="₹50,000" {...f("prizePool")} /></div>
-              <div className="form-group form-full"><label>Format</label><input type="text" placeholder="Battle Royale · Squad · 25 Teams" {...f("format")} /></div>
+
+              {/* ── datetime pickers ── */}
+              <div className="form-group">
+                <label>Start Date &amp; Time</label>
+                <input
+                  type="datetime-local"
+                  {...f("startDate")}
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
+              <div className="form-group">
+                <label>End Date &amp; Time</label>
+                <input
+                  type="datetime-local"
+                  {...f("endDate")}
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
+
+              {/* Live preview badge */}
+              {previewStatus && (
+                <div className="form-group form-full">
+                  <label>Auto Status Preview</label>
+                  <div style={{ display: "inline-flex", alignItems: "center", gap: "0.7rem" }}>
+                    <span className={`tournament-status ${statusClass[previewStatus]}`}>
+                      {statusLabel[previewStatus]}
+                    </span>
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontFamily: "var(--font-alt)" }}>
+                      Updates automatically based on current time
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Display label + prize + format */}
+              <div className="form-group">
+                <label>
+                  Display Date Label
+                  <span style={{ color: "var(--text-muted)", fontWeight: 400, marginLeft: 6 }}>(shown on site)</span>
+                </label>
+                <input type="text" placeholder="DEC 2025" {...f("date")} />
+              </div>
+              <div className="form-group">
+                <label>Prize Pool</label>
+                <input type="text" placeholder="₹50,000" {...f("prizePool")} />
+              </div>
+              <div className="form-group form-full">
+                <label>Format</label>
+                <input type="text" placeholder="Battle Royale · Squad · 25 Teams" {...f("format")} />
+              </div>
+
             </div>
             <div className="form-actions">
               <button className="btn-cancel" onClick={() => setShowForm(false)}>Cancel</button>
-              <button className="btn-save" onClick={save}><i className="fas fa-save"></i> {editingId ? "Update" : "Save"} Tournament</button>
+              <button className="btn-save" onClick={save}>
+                <i className="fas fa-save"></i> {editingId ? "Update" : "Save"} Tournament
+              </button>
             </div>
           </div>
         </div>
@@ -1033,7 +1162,6 @@ function TournamentsTab({ tournaments, setTournaments, fetchTournaments, showToa
 
 // ════════════════════════════════════════════════════════════════
 //  CONTACTS TAB
-//  ✅ Fixed: no longer creates its own io() — receives socket as prop
 // ════════════════════════════════════════════════════════════════
 function ContactsTab({ contacts, setContacts, loading, addNotification, showToast, socket }) {
   const [selected, setSelected] = useState(null);
@@ -1053,7 +1181,6 @@ function ContactsTab({ contacts, setContacts, loading, addNotification, showToas
     socket.on("new_contact", handler);
     if (Notification.permission === "default") Notification.requestPermission();
 
-    // ✅ Only remove THIS handler, not disconnect the shared socket
     return () => socket.off("new_contact", handler);
   }, [socket]);
 
@@ -1280,7 +1407,6 @@ export default function App() {
   const [contactsLoading, setContactsLoading]  = useState(true);
   const [unreadCount,     setUnreadCount]      = useState(0);
 
-  // ✅ Single shared socket stored in a ref — created once, used everywhere
   const socketRef = useRef(null);
 
   const { toasts, showToast } = useToasts();
@@ -1313,7 +1439,6 @@ export default function App() {
     }
   }, [loggedIn]);
 
-  // ✅ Single socket created from SOCKET_URL (derived from env var, not hardcoded)
   useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ["websocket", "polling"] });
     socketRef.current = socket;
@@ -1348,7 +1473,6 @@ export default function App() {
     setContacts([]); setNotifications([]); setUnreadCount(0);
   };
 
-  /* ── Auto-logout on 401 ── */
   useEffect(() => {
     const handler = (e) => { if (e?.reason?.status === 401) handleLogout(); };
     window.addEventListener("unhandledrejection", handler);
@@ -1393,7 +1517,6 @@ export default function App() {
             {activeTab === "achievements"  && <AchievementsTab achievements={achievements} setAchievements={setAchievements} fetchAchievements={fetchAchievements} showToast={showToast} addNotification={addNotification} />}
             {activeTab === "gallery"       && <GalleryTab gallery={gallery} setGallery={setGallery} fetchGallery={fetchGallery} showToast={showToast} addNotification={addNotification} />}
             {activeTab === "tournaments"   && <TournamentsTab tournaments={tournaments} setTournaments={setTournaments} fetchTournaments={fetchTournaments} showToast={showToast} addNotification={addNotification} />}
-            {/* ✅ socket prop passed down — ContactsTab no longer makes its own io() */}
             {activeTab === "contacts"      && <ContactsTab contacts={contacts} setContacts={setContacts} loading={contactsLoading} addNotification={addNotification} showToast={showToast} socket={socketRef.current} />}
             {activeTab === "notifications" && <NotificationsTab notifications={notifications} clearNotifications={clearNotifications} />}
             {activeTab === "settings"      && <SettingsTab showToast={showToast} adminName={adminName} />}

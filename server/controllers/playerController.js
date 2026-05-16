@@ -1,31 +1,17 @@
 const Player = require('../models/Player');
-const { downloadImageFromUrl } = require('../utils/downloadImage');
-
-const BASE = process.env.BASE_URL || 'http://localhost:5000';
+const {
+  uploadImageFromUrl,
+  deleteFromCloudinary,
+} = require('../utils/uploadToCloudinary');
 
 
 /* =========================
    HELPER
-   If the image field looks like
-   a Drive URL, download it to
-   /uploads and return local URL.
-   Otherwise return as-is.
 ========================= */
 
 async function resolveImage(imageUrl) {
   if (!imageUrl) return '';
-
-  const isDriveLink =
-    imageUrl.includes('drive.google.com') ||
-    imageUrl.includes('docs.google.com');
-
-  if (isDriveLink) {
-    const localPath = await downloadImageFromUrl(imageUrl);
-    return localPath ? `${BASE}${localPath}` : '';
-  }
-
-  // Already a direct URL or local path — keep it
-  return imageUrl;
+  return await uploadImageFromUrl(imageUrl);
 }
 
 
@@ -44,17 +30,13 @@ exports.getPlayers = async (req, res) => {
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /* =========================
    CREATE PLAYER
-   Auto-downloads Drive image
-   before saving to DB.
 ========================= */
 
 exports.createPlayer = async (req, res) => {
@@ -63,7 +45,6 @@ exports.createPlayer = async (req, res) => {
 
     const body = { ...req.body };
 
-    /* Resolve Drive image → local URL */
     if (body.image) {
       body.image = await resolveImage(body.image);
     }
@@ -72,38 +53,27 @@ exports.createPlayer = async (req, res) => {
 
     await newPlayer.save();
 
-
-    /* SOCKET NOTIFICATION */
-
     const io = req.app.get('io');
 
     io.emit('notification', {
-
-      type: 'player',
-
-      action: 'create',
-
-      message:
-        `🔥 New player joined: ${newPlayer.ign}`
-
+      type:    'player',
+      action:  'create',
+      message: `🔥 New player joined: ${newPlayer.ign}`
     });
-
 
     res.status(201).json(newPlayer);
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /* =========================
    UPDATE PLAYER
-   Also resolves Drive image
-   if image field was changed.
+   Deletes old Cloudinary image
+   when image is replaced.
 ========================= */
 
 exports.updatePlayer = async (req, res) => {
@@ -112,98 +82,81 @@ exports.updatePlayer = async (req, res) => {
 
     const body = { ...req.body };
 
-    /* Resolve Drive image → local URL */
     if (body.image) {
-      body.image = await resolveImage(body.image);
+
+      /* Fetch existing player to get old image URL */
+      const existing = await Player.findById(req.params.id);
+
+      const newImageUrl = await resolveImage(body.image);
+
+      /* Delete old Cloudinary image if it's being replaced */
+      if (existing?.image && existing.image !== newImageUrl) {
+        await deleteFromCloudinary(existing.image);
+      }
+
+      body.image = newImageUrl;
     }
 
-    const updated =
-      await Player.findByIdAndUpdate(
-        req.params.id,
-        body,
-        { returnDocument: 'after' }
-      );
+    const updated = await Player.findByIdAndUpdate(
+      req.params.id,
+      body,
+      { returnDocument: 'after' }
+    );
 
     if (!updated) {
-
-      return res.status(404).json({
-        message: 'Player not found'
-      });
+      return res.status(404).json({ message: 'Player not found' });
     }
-
-
-    /* SOCKET NOTIFICATION */
 
     const io = req.app.get('io');
 
     io.emit('notification', {
-
-      type: 'player',
-
-      action: 'update',
-
-      message:
-        `✏️ Player updated: ${updated.ign}`
-
+      type:    'player',
+      action:  'update',
+      message: `✏️ Player updated: ${updated.ign}`
     });
-
 
     res.json(updated);
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
 
 
 /* =========================
    DELETE PLAYER
+   Also removes image from
+   Cloudinary.
 ========================= */
 
 exports.deletePlayer = async (req, res) => {
 
   try {
 
-    const deleted =
-      await Player.findByIdAndDelete(
-        req.params.id
-      );
+    const deleted = await Player.findByIdAndDelete(req.params.id);
 
     if (!deleted) {
-
-      return res.status(404).json({
-        message: 'Player not found'
-      });
+      return res.status(404).json({ message: 'Player not found' });
     }
 
-
-    /* SOCKET NOTIFICATION */
+    /* Delete image from Cloudinary */
+    if (deleted.image) {
+      await deleteFromCloudinary(deleted.image);
+    }
 
     const io = req.app.get('io');
 
     io.emit('notification', {
-
-      type: 'player',
-
-      action: 'delete',
-
-      message:
-        `❌ Player removed: ${deleted.ign}`
-
+      type:    'player',
+      action:  'delete',
+      message: `❌ Player removed: ${deleted.ign}`
     });
 
-
-    res.json({
-      message: 'Player deleted'
-    });
+    res.json({ message: 'Player deleted' });
 
   } catch (err) {
 
-    res.status(500).json({
-      message: err.message
-    });
+    res.status(500).json({ message: err.message });
   }
 };
