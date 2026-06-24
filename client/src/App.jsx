@@ -3,7 +3,9 @@ import { Canvas } from '@react-three/fiber';
 import { Environment } from '@react-three/drei';
 import { Suspense } from 'react';
 import DragonModel from './components/DragonModel';
+import PlayerSearch from './components/PlayerSearch';
 import './App.css'
+import './player-search.css'
 
 const API = import.meta.env.VITE_API_URL;
 // ✅ Fixed: admin panel URL from env var instead of ../components/admin.jsx (a file path, not a URL)
@@ -203,6 +205,9 @@ function App() {
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [playerFade, setPlayerFade] = useState(true);
+  // ✅ NEW: id of a player chosen from search suggestions — triggers
+  // scroll-into-view + pulse highlight once their card renders.
+  const [jumpToId, setJumpToId] = useState(null);
 
   const admins = players.filter(p => p.role === 'admin');
 
@@ -225,6 +230,15 @@ function App() {
       const el = document.getElementById('lightbox');
       if (el) el.classList.remove('open');
     }
+  }
+
+  // ✅ NEW: called when a suggestion is picked from PlayerSearch.
+  // Sets the search term to that player's IGN (so the filtered grid
+  // in Effect 3 includes them) and flags them to be scrolled-to once
+  // the grid re-renders.
+  function handleSelectPlayer(player) {
+    setSearchTerm((player.ign || '').toLowerCase());
+    setJumpToId(player._id);
   }
 
   /* ── Effect 1: particle canvas ── */
@@ -364,9 +378,10 @@ function App() {
   useEffect(() => {
     if (!players.length) return;
     if (searchTerm) {
+      const q = searchTerm.toLowerCase();
       const filtered = players.filter(p =>
-        (p.ign || '').toLowerCase().includes(searchTerm) ||
-        (p.name || '').toLowerCase().includes(searchTerm)
+        (p.ign || '').toLowerCase().includes(q) ||
+        (p.name || '').toLowerCase().includes(q)
       );
       setDisplayedPlayers(filtered);
       return;
@@ -399,7 +414,7 @@ function App() {
       grid.style.transition = 'opacity 0.38s ease, transform 0.38s ease';
 
       grid.innerHTML = list.map(p => `
-        <div class="player-card" onclick="window.__openModal('${p._id}')">
+        <div class="player-card" data-player-id="${p._id}" onclick="window.__openModal('${p._id}')">
           <div class="player-img-wrap">
             ${p.image
           ? `<img class="player-img" src="${p.image}" alt="${p.ign}"/>`
@@ -416,6 +431,18 @@ function App() {
           </div>
         </div>
       `).join('');
+
+      // ✅ NEW: if a search suggestion was just selected, scroll to its
+      // card and give it a brief gold pulse so the user can find it.
+      if (jumpToId) {
+        const card = grid.querySelector(`[data-player-id="${jumpToId}"]`);
+        if (card) {
+          card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          card.classList.add('search-jump-highlight');
+          setTimeout(() => card.classList.remove('search-jump-highlight'), 1700);
+        }
+        setJumpToId(null);
+      }
     }
 
     renderPlayers();
@@ -453,7 +480,7 @@ function App() {
     };
 
     return () => { delete window.__openModal; };
-  }, [displayedPlayers, playerFade, players]);
+  }, [displayedPlayers, playerFade, players, jumpToId]);
 
   /* ── Effect 5: render admins carousel ── */
   useEffect(() => {
@@ -914,11 +941,14 @@ function App() {
           <p className="section-subtitle">The warriors who carry the IDC banner into every arena.</p>
         </div>
         <div className="players-controls reveal">
-          <div className="search-box">
-            <i className="fas fa-search"></i>
-            <input type="text" id="playerSearch" placeholder="Search players..."
-              onInput={() => window.__filterPlayers?.()} />
-          </div>
+          {/* ✅ Smart search with live autocomplete suggestions.
+              Replaces the old plain <input onInput={window.__filterPlayers}>. */}
+          <PlayerSearch
+            players={players}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            onSelectPlayer={handleSelectPlayer}
+          />
         </div>
         <div className="players-grid" id="playersGrid"></div>
       </section>

@@ -80,6 +80,7 @@ app.use('/api/gallery',      require('./routes/galleryRoutes'));
 app.use('/api/tournaments',  require('./routes/tournamentRoutes'));
 app.use('/api/contact',      require('./routes/ContactRoutes'));
 app.use('/api/auth',         require('./routes/authRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
 
 /* =========================
    ROOT

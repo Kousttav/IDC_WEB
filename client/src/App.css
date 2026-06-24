@@ -381,14 +381,12 @@ section { position:relative; z-index:2; }
 @keyframes previewPulse { 0%,100%{opacity:0.15;} 50%{opacity:0.28;} }
 
 /* ============================================================ PLAYERS */
-.players-controls { display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; margin-bottom:3rem; }
-.search-box { position:relative; flex:1; min-width:240px; max-width:380px; }
+.players-controls { position: relative; isolation: isolate; z-index: 200; display:flex; flex-wrap:wrap; gap:1rem; justify-content:center; margin-bottom:3rem; }.search-box { position:relative; flex:1; min-width:240px; max-width:380px; }
 .search-box input { width:100%; padding:13px 20px 13px 46px; background: var(--card); border:1px solid var(--border-fire); border-radius:var(--radius); color:var(--text); font-family:var(--font-body); font-size:0.9rem; outline:none; transition:all var(--transition); }
 .search-box input:focus { border-color:var(--ember-3); box-shadow:0 0 0 3px rgba(255,100,0,0.1), 0 0 20px rgba(255,80,0,0.15); }
 .search-box i { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:var(--ember-3); pointer-events:none; }
-.players-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:1.6rem; max-width:1200px; margin:0 auto; }
-.player-card { background: linear-gradient(145deg, var(--card), var(--cavern)); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all 0.4s ease; position:relative; transform-style:preserve-3d; }
-.player-card:hover { transform: translateY(-10px) rotateX(3deg); border-color:rgba(255,100,0,0.4); box-shadow: var(--glow-fire), 0 30px 60px rgba(0,0,0,0.7); }
+.players-grid { display:grid; position:relative; z-index:1; isolation: isolate; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:1.6rem; max-width:1200px; margin:0 auto; }
+.player-card { background: linear-gradient(145deg, var(--card), var(--cavern)); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:all 0.4s ease; position:relative; }.player-card:hover { transform: translateY(-10px) rotateX(3deg); border-color:rgba(255,100,0,0.4); box-shadow: var(--glow-fire), 0 30px 60px rgba(0,0,0,0.7); }
 .player-img-wrap { position:relative; height:225px; overflow:hidden; background:linear-gradient(135deg,#0e0e22,#050510); }
 .player-img { width:100%; height:100%; object-fit:cover; object-position:top; transition:transform 0.5s ease; }
 .player-card:hover .player-img { transform:scale(1.07); }
