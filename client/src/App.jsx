@@ -205,8 +205,6 @@ function App() {
   const [displayedPlayers, setDisplayedPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [playerFade, setPlayerFade] = useState(true);
-  // ✅ NEW: id of a player chosen from search suggestions — triggers
-  // scroll-into-view + pulse highlight once their card renders.
   const [jumpToId, setJumpToId] = useState(null);
 
   const admins = players.filter(p => p.role === 'admin');
@@ -232,10 +230,6 @@ function App() {
     }
   }
 
-  // ✅ NEW: called when a suggestion is picked from PlayerSearch.
-  // Sets the search term to that player's IGN (so the filtered grid
-  // in Effect 3 includes them) and flags them to be scrolled-to once
-  // the grid re-renders.
   function handleSelectPlayer(player) {
     setSearchTerm((player.ign || '').toLowerCase());
     setJumpToId(player._id);
@@ -288,7 +282,7 @@ function App() {
     return () => { window.removeEventListener('resize', onResize); cancelAnimationFrame(animId); };
   }, []);
 
-  /* ── Effect 2: one-time UI setup ── */
+  /* ── Effect 2: one-time UI setup + ✅ parallel data fetching ── */
   useEffect(() => {
     const onScroll = () => {
       document.getElementById('mainNav')?.classList.toggle('scrolled', window.scrollY > 30);
@@ -358,10 +352,15 @@ function App() {
       document.getElementById('lightbox')?.classList.add('open');
     };
 
-    fetchPlayers();
-    fetchAchievements();
-    fetchGallery();
-    fetchTournaments();
+    // ✅ PARALLEL FETCH — all 4 API calls fire simultaneously
+    // instead of waiting for each one to finish before starting the next.
+    // Total wait time = slowest single request (instead of sum of all 4).
+    Promise.all([
+      fetch(`${API}/players`).then(r => r.json()).then(setPlayers),
+      fetch(`${API}/achievements`).then(r => r.json()).then(setAchievements),
+      fetch(`${API}/gallery`).then(r => r.json()).then(setGallery),
+      fetch(`${API}/tournaments`).then(r => r.json()).then(setTournaments),
+    ]).catch(err => console.error('Failed to load data:', err));
 
     return () => {
       window.removeEventListener('scroll', onScroll);
@@ -432,8 +431,6 @@ function App() {
         </div>
       `).join('');
 
-      // ✅ NEW: if a search suggestion was just selected, scroll to its
-      // card and give it a brief gold pulse so the user can find it.
       if (jumpToId) {
         const card = grid.querySelector(`[data-player-id="${jumpToId}"]`);
         if (card) {
@@ -690,24 +687,6 @@ function App() {
     grid.querySelectorAll('.reveal').forEach(el => revealObsRef.current?.observe(el));
   }, [tournaments]);
 
-  /* ── Fetch functions ── */
-  const fetchPlayers = async () => {
-    try { const res = await fetch(`${API}/players`); setPlayers(await res.json()); }
-    catch (err) { console.log(err); }
-  };
-  const fetchAchievements = async () => {
-    try { const res = await fetch(`${API}/achievements`); setAchievements(await res.json()); }
-    catch (err) { console.log(err); }
-  };
-  const fetchGallery = async () => {
-    try { const res = await fetch(`${API}/gallery`); setGallery(await res.json()); }
-    catch (err) { console.log(err); }
-  };
-  const fetchTournaments = async () => {
-    try { const res = await fetch(`${API}/tournaments`); setTournaments(await res.json()); }
-    catch (err) { console.log(err); }
-  };
-
   const [formData, setFormData] = useState({
     name: '', email: '', subject: 'Sponsorship Inquiry', message: '',
   });
@@ -772,7 +751,6 @@ function App() {
           <a href="#tournaments">Tournaments</a>
           <a href="#contact">Contact</a>
         </div>
-        {/* ✅ Fixed: uses ADMIN_URL env var instead of ../components/admin.jsx */}
         <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer" className="nav-cta">Admin Panel</a>
         <div className="nav-hamburger" onClick={toggleMobile}>
           <span></span><span></span><span></span>
@@ -789,7 +767,6 @@ function App() {
         <a href="#gallery" onClick={closeMobile}>Gallery</a>
         <a href="#tournaments" onClick={closeMobile}>Tournaments</a>
         <a href="#contact" onClick={closeMobile}>Contact</a>
-        {/* ✅ Fixed: uses ADMIN_URL env var */}
         <a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">Admin Panel →</a>
       </div>
 
@@ -941,8 +918,6 @@ function App() {
           <p className="section-subtitle">The warriors who carry the IDC banner into every arena.</p>
         </div>
         <div className="players-controls reveal">
-          {/* ✅ Smart search with live autocomplete suggestions.
-              Replaces the old plain <input onInput={window.__filterPlayers}>. */}
           <PlayerSearch
             players={players}
             searchTerm={searchTerm}
@@ -1129,7 +1104,6 @@ function App() {
               <li><a href="#">Sponsorship</a></li>
               <li><a href="#">Discord</a></li>
               <li><a href="#contact">Contact</a></li>
-              {/* ✅ Fixed: uses ADMIN_URL env var */}
               <li><a href={ADMIN_URL} target="_blank" rel="noopener noreferrer">Admin</a></li>
             </ul>
           </div>
@@ -1151,7 +1125,7 @@ function App() {
 
       {/* LIGHTBOX */}
       <div className="lightbox" id="lightbox" onClick={closeLightbox}>
-        <span className="lightbox-close"><i className="fas fa-times"></i></span>
+        <span className="lightbox-close"></span>
         <img id="lightboxImg" src="" alt="" onClick={e => e.stopPropagation()} />
       </div>
 
