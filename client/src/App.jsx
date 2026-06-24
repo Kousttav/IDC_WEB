@@ -1109,7 +1109,7 @@ function App() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>© {new Date().getFullYear()} Immortal De Campeones. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Immortal De Campeones. All rights reserved.<br />Owned and Managed by Kousttav Biswas</p>
           <span>IDC ESPORTS · BORN IMMORTAL</span>
         </div>
       </footer>
