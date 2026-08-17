@@ -743,9 +743,9 @@ function App() {
         <div className="nav-links">
           <a href="#home">Home</a>
           <a href="#about">About</a>
-          <a href="#founders">Founders</a>
+          
           <a href="#achievements">Achievements</a>
-          {admins.length > 0 && <a href="#admins">Admins</a>}
+          
           <a href="#players">Players</a>
           <a href="#gallery">Gallery</a>
           <a href="#tournaments">Tournaments</a>
@@ -760,9 +760,9 @@ function App() {
       <div className="mobile-menu" id="mobileMenu">
         <a href="#home" onClick={closeMobile}>Home</a>
         <a href="#about" onClick={closeMobile}>About</a>
-        <a href="#founders" onClick={closeMobile}>Founders</a>
+        
         <a href="#achievements" onClick={closeMobile}>Achievements</a>
-        {admins.length > 0 && <a href="#admins" onClick={closeMobile}>Admins</a>}
+        
         <a href="#players" onClick={closeMobile}>Players</a>
         <a href="#gallery" onClick={closeMobile}>Gallery</a>
         <a href="#tournaments" onClick={closeMobile}>Tournaments</a>
@@ -792,10 +792,7 @@ function App() {
           </h1>
           <div className="hero-divider"></div>
           <p className="hero-tagline">"We don't just play to compete — we play to conquer."</p>
-          <div className="hero-actions" style={{ pointerEvents: 'auto' }}>
-            <a href="#players" className="btn-primary">Meet The Roster</a>
-            <a href="#achievements" className="btn-secondary">Our Legacy</a>
-          </div>
+          
         </div>
         <div style={{ position: 'absolute', inset: 0, zIndex: 20, pointerEvents: 'none' }}>
           <Canvas shadows gl={{ alpha: true, antialias: true }} camera={{ position: [0, 3.5, 14], fov: 22 }} style={{ background: 'transparent' }}>
@@ -807,13 +804,17 @@ function App() {
               <DragonModel targetPosition={targetPosition} animation={animation} speed={speed} onReached={onReached} />
             </Suspense>
           </Canvas>
+         <div className="hero-actions" style={{ pointerEvents: 'auto' }}>
+            <a href="#players" className="btn-primary" onClick={closeMobile}>Meet The Roster</a>
+            <a href="#achievements" className="btn-secondary">Our Legacy</a>
+          </div>
         </div>
         <div className="hero-scroll">
           <span>SCROLL</span>
           <div className="hero-scroll-line"></div>
         </div>
       </section>
-
+     
       {/* STATS STRIP */}
       <div className="stats-strip reveal">
         <div className="stats-grid">

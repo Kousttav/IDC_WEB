@@ -86,7 +86,9 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
    ROOT
 ========================= */
 app.get('/', (req, res) => res.send('IDC Backend Running'));
-
+app.get('/api/health',(req,res)=>{
+  res.json({status: 'online',provider:'Groq',model:'GROQ_MODELS'})
+});
 /* =========================
    SERVER
 ========================= */
