@@ -987,7 +987,7 @@ footer { background: linear-gradient(180deg, var(--abyss), var(--void)); border-
     padding: 1rem 1.1rem;
     align-items: center;
   }
-  .founder-card-top { grid-column: 1 / -1; grid-row: 1; margin-bottom: 0.7rem; }
+  .founder-card-top { grid-column: 1 / -1; margin-bottom: 0.7rem; }
   .founder-role-badge { grid-column: 1 / -1; grid-row: 2; margin-bottom: 0.7rem; text-align: center; font-size: 0.5rem; padding: 3px 10px; }
   .founder-img-wrap { grid-column: 1; grid-row: 3; width: 68px; height: 68px; margin: 0; }
   .founder-img, .founder-img-placeholder { width: 68px; height: 68px; }
