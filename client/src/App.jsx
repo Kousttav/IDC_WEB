@@ -211,6 +211,8 @@ function App() {
 
   const revealObsRef = useRef(null);
   const showAllAchievementsRef = useRef(false);
+  const showAllTournamentsRef = useRef(false);
+  const randomTournamentsRef = useRef([]);
 
   const { targetPosition, animation, speed, onReached } = useDragonSequence();
 
@@ -664,13 +666,19 @@ function App() {
     return () => { delete window.__openLightbox; delete window.__closeLightbox; };
   }, []);
 
-  /* ── Effect 8: tournaments ── */
+  /* ── Effect 8: tournaments — 3 random + "SEE ALL" reveal ── */
   useEffect(() => {
     const grid = document.getElementById('tournamentsGrid');
     if (!grid) return;
     const cls = { live: 'status-live', upcoming: 'status-upcoming', completed: 'status-completed' };
     const label = { live: '🔴 LIVE NOW', upcoming: '📅 UPCOMING', completed: '✅ COMPLETED' };
-    grid.innerHTML = tournaments.map(t => {
+
+    // Shuffle once per fresh tournaments dataset; stays stable across re-renders/toggles
+    if (tournaments.length && randomTournamentsRef.current.length !== tournaments.length) {
+      randomTournamentsRef.current = [...tournaments].sort(() => Math.random() - 0.5);
+    }
+
+    function cardHTML(t) {
       const status = t.status || 'upcoming';
       return `
         <div class="tournament-card reveal">
@@ -683,8 +691,44 @@ function App() {
             <div class="t-meta-item"><i class="fas fa-users"></i> ${t.format}</div>
           </div>
         </div>`;
-    }).join('');
-    grid.querySelectorAll('.reveal').forEach(el => revealObsRef.current?.observe(el));
+    }
+
+    function renderTournaments() {
+      const data = randomTournamentsRef.current;
+      const showAll = showAllTournamentsRef.current;
+      const visible = showAll ? data : data.slice(0, 3);
+
+      let cardsHTML = visible.map(cardHTML).join('');
+
+      if (!showAll && data[3]) {
+        cardsHTML += `
+          <div class="see-more-card">
+            <div class="preview-tournament">
+              ${cardHTML(data[3])}
+            </div>
+            <button class="see-more-btn" onclick="window.__toggleTournaments()">SEE ALL</button>
+          </div>`;
+      }
+
+      if (showAll) {
+        cardsHTML += `
+          <div class="show-less-wrap">
+            <button class="show-less-btn" onclick="window.__toggleTournaments()">SHOW LESS</button>
+          </div>`;
+      }
+
+      grid.innerHTML = cardsHTML;
+      grid.querySelectorAll('.reveal').forEach(el => revealObsRef.current?.observe(el));
+    }
+
+    renderTournaments();
+
+    window.__toggleTournaments = () => {
+      showAllTournamentsRef.current = !showAllTournamentsRef.current;
+      renderTournaments();
+    };
+
+    return () => { delete window.__toggleTournaments; };
   }, [tournaments]);
 
   const [formData, setFormData] = useState({
